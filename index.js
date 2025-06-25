@@ -23,6 +23,12 @@ function broadcastOnline() {
 
 wss.on("connection", ws => {
   console.log("New client connected");
+  ws.isAlive = true;
+
+  ws.on("pong", () => {
+    ws.isAlive = true;
+  });
+
   broadcastOnline();
 
   // Send current online count to just this new client
@@ -45,4 +51,20 @@ wss.on("connection", ws => {
     console.log("Client disconnected");
     broadcastOnline();
   });
+});
+
+// Heartbeat Check - alle 30 Sekunden
+const interval = setInterval(() => {
+  wss.clients.forEach(ws => {
+    if (ws.isAlive === false) {
+      console.log("Terminating dead client");
+      return ws.terminate();
+    }
+    ws.isAlive = false;
+    ws.ping();
+  });
+}, 30000);
+
+wss.on("close", () => {
+  clearInterval(interval);
 });
