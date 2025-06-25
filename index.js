@@ -24,6 +24,11 @@ wss.on("connection", ws => {
   console.log("New client connected");
   broadcastOnline();
 
+  // Send current online count to just this new client
+  const count = wss.clients.size;
+  const payload = JSON.stringify({ type: "online", count });
+  ws.send(payload);
+
   ws.on("message", data => {
     console.log("Message received:", data.toString());
 
