@@ -1,5 +1,9 @@
 import express from "express";
 import { WebSocketServer } from "ws";
+import dotenv from "dotenv";
+import crypto from "crypto";
+
+dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -67,4 +71,22 @@ const interval = setInterval(() => {
 
 wss.on("close", () => {
   clearInterval(interval);
+});
+
+// Cloudinary Signature Endpoint
+app.get("/getCloudinarySignature", (req, res) => {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const paramsToSign = `timestamp=${timestamp}&upload_preset=${process.env.UPLOAD_PRESET}`;
+  const signature = crypto
+    .createHash("sha1")
+    .update(paramsToSign + process.env.CLOUDINARY_API_SECRET)
+    .digest("hex");
+
+  res.json({
+    timestamp,
+    signature,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    uploadPreset: process.env.UPLOAD_PRESET
+  });
 });
