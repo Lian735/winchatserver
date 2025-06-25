@@ -13,6 +13,7 @@ const wss = new WebSocketServer({ server });
 function broadcastOnline() {
   const count = wss.clients.size;
   const payload = JSON.stringify({ type: "online", count });
+  console.log("Sending online update to all clients:", payload);
   wss.clients.forEach(client => {
     if (client.readyState === 1) {
       client.send(payload);
