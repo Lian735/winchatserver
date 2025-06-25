@@ -10,13 +10,24 @@ const server = app.listen(port, () => {
 
 const wss = new WebSocketServer({ server });
 
+function broadcastOnline() {
+  const count = wss.clients.size;
+  const payload = JSON.stringify({ type: "online", count });
+  wss.clients.forEach(client => {
+    if (client.readyState === 1) {
+      client.send(payload);
+    }
+  });
+}
+
 wss.on("connection", ws => {
   console.log("New client connected");
+  broadcastOnline();
 
   ws.on("message", data => {
     console.log("Message received:", data.toString());
 
-    // Broadcast to all connected clients
+    // Broadcast the message to all clients
     wss.clients.forEach(client => {
       if (client.readyState === 1) {
         client.send(data);
@@ -26,5 +37,6 @@ wss.on("connection", ws => {
 
   ws.on("close", () => {
     console.log("Client disconnected");
+    broadcastOnline();
   });
 });
