@@ -3,21 +3,22 @@ import { WebSocketServer } from "ws";
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 import dotenv from "dotenv";
-import fs from "fs";
 
-// .env Variablen laden
 dotenv.config();
 
-// Cloudinary Konfiguration
+const app = express();
+const port = process.env.PORT || 8080;
+
+// Cloudinary Config
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const app = express();
-const port = process.env.PORT || 8080;
-const upload = multer({ dest: "uploads/" });
+// Multer für Memory Uploads
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
 // WebSocket Server
 const server = app.listen(port, () => {
@@ -76,21 +77,21 @@ wss.on("close", () => {
 });
 
 // Cloudinary Upload Endpoint
-app.post("/uploadProfilePic", upload.single("image"), async (req, res) => {
+app.post("/uploadProfilePic", upload.single("image"), (req, res) => {
   if (!req.file) {
+    console.error("No file uploaded");
     return res.status(400).json({ error: "No file uploaded" });
   }
 
-  try {
-    const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: "profile_pics",
-      upload_preset: process.env.UPLOAD_PRESET,
-    });
-
-    fs.unlink(req.file.path, () => {}); // Temp-Datei löschen
-    res.json({ url: result.secure_url });
-  } catch (error) {
-    console.error("Upload error:", error);
-    res.status(500).json({ error: "Cloudinary upload failed" });
-  }
+  cloudinary.uploader.upload_stream(
+    { upload_preset: process.env.UPLOAD_PRESET },
+    (error, result) => {
+      if (error) {
+        console.error("Cloudinary upload failed:", error);
+        return res.status(500).json({ error: "Cloudinary upload failed" });
+      }
+      console.log("Cloudinary upload success:", result.secure_url);
+      res.json({ url: result.secure_url });
+    }
+  ).end(req.file.buffer);
 });
