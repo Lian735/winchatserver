@@ -27,6 +27,8 @@ const server = app.listen(port, () => {
 
 const wss = new WebSocketServer({ server });
 
+const users = {}; // deviceID -> User-Daten
+
 function broadcastOnline() {
   const count = wss.clients.size;
   const payload = JSON.stringify({ type: "online", count });
@@ -51,6 +53,40 @@ wss.on("connection", (ws) => {
   ws.send(payload);
 
   ws.on("message", (data) => {
+    let msg;
+    try {
+      msg = JSON.parse(data);
+    } catch (e) {
+      console.error("Invalid JSON received:", data);
+      return;
+    }
+
+    // Profil-Update speichern
+    if (msg.type === "profile_update") {
+      users[msg.deviceID] = {
+        username: msg.username,
+        status: msg.status,
+        profileImageURL: msg.profileImageURL,
+      };
+    }
+
+    // Profil-Anfrage beantworten
+    if (msg.type === "request_profile") {
+      const target = users[msg.targetDeviceID];
+      if (target) {
+        const response = {
+          type: "profile_update",
+          deviceID: msg.targetDeviceID,
+          username: target.username,
+          status: target.status,
+          profileImageURL: target.profileImageURL,
+        };
+        ws.send(JSON.stringify(response));
+      }
+      return; // Nicht weiter broadcasten
+    }
+
+    // Alles andere weiterhin an alle broadcasten
     wss.clients.forEach((client) => {
       if (client.readyState === 1) {
         client.send(data);
